@@ -1,0 +1,258 @@
+-- DATA CLEANING PROJECT
+#Create a new database (Go to new schema)
+#import data 
+select * 
+from layoffs;
+# The things we will do : 
+-- 1. Remove duplicate
+-- 2. Standardize the data ( we set data to the same )
+-- 3. Remove all null or blank values in the data
+-- 4. Remove any coloum that not necessary for analyzed data or rows
+
+#Make the other table that literally have the same data to layoffs
+CREATE TABLE layoffs_staging # we want to change layoffs_staging a lot, that doesn't effect to layoffs table and we dont work with the row data
+like layoffs;
+
+
+SELECT * 
+FROM layoffs_staging;
+
+#INSERT DATA
+insert layoffs_staging
+select *
+from layoffs;
+
+-- 1. REMOVING DUPLICATES WAY
+
+SELECT*,
+ROW_NUMBER() OVER(
+PARTITION BY company,industry, total_laid_off,percentage_laid_off,`date`) as row_num 
+FROM layoffs_staging; #We want to filter row_number > 1 is duplicate data
+
+with duplicate_cte as
+(
+SELECT*,
+ROW_NUMBER() OVER(
+PARTITION BY company,location,industry, 
+total_laid_off,percentage_laid_off,`date`,
+stage,country, funds_raised_millions) as row_num 
+FROM layoffs_staging
+)
+
+select*
+from duplicate_cte 
+where row_num > 1
+;
+
+#confirm those data are actually duplicate
+SELECT * 
+FROM layoffs_staging
+where company ='Casper';
+
+# We dont want to remove both of them, there is only one data in the table
+# creating the other tables that has the extra row (has duplicate) and deleting that row when the row = 2
+with duplicate_cte as
+(
+SELECT*,
+ROW_NUMBER() OVER(
+PARTITION BY company,location,industry, 
+total_laid_off,percentage_laid_off,`date`,
+stage,country, funds_raised_millions) as row_num 
+FROM layoffs_staging
+)
+
+select*
+from duplicate_cte 
+where row_num > 1
+;
+
+
+-- Create a new table ( Go to the layoffs_staging, click right and choose copy the clipboard and then create a statement, paste in the page)
+CREATE TABLE `layoffs_staging2` #Give the new name
+( 
+  `company` text,
+  `location` text,
+  `industry` text,
+  `total_laid_off` int DEFAULT NULL,
+  `percentage_laid_off` text,
+  `date` text,
+  `stage` text,
+  `country` text,
+  `funds_raised_millions` int DEFAULT NULL,
+  `row_num` int
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+select *
+from layoffs_staging2; # we got the new table with empty data and we want insert data from layoffs_staging
+
+INSERT INTO layoffs_staging2
+SELECT*,
+ROW_NUMBER() OVER(
+PARTITION BY company,location,industry, 
+total_laid_off,percentage_laid_off,`date`,
+stage,country, funds_raised_millions) as row_num 
+FROM layoffs_staging;
+
+select *
+from layoffs_staging2 #WE GOT THE NEW TABLE AND THE NEW COLOUM 'row_number' basically the copy of layoffs
+where row_num > 1; # This data we want to remove it
+
+-- This the method to delete it
+DELETE
+from layoffs_staging2 
+where row_num > 1;
+
+# CHECK The data again
+select *
+from layoffs_staging2 
+where row_num > 1; #Empty sheet (Because it has removed)
+
+# check the actuall data
+select *
+from layoffs_staging2;
+
+-- 2.Standarize Data(Finding issues in your data and fixing it)
+# company
+select company,trim(company)
+from layoffs_staging2 ;
+
+UPDATE layoffs_staging2 
+SET company = trim(company);
+#check again
+select *
+from layoffs_staging2;
+
+# Industry (We can use distinct to choose the unique value only)
+select distinct industry
+from layoffs_staging2
+order by 1; # There are crypo, crypto currency, cryptocurrency (we want to change into 1 unit, show we can easily to visualize it)
+
+#check the crypto industry
+select *
+from layoffs_staging2
+where industry like "Crypto%";
+
+# we want to update all of them to be crypto
+Update layoffs_staging2
+set industry ='Crypto'
+where industry like 'Crypto%';
+
+#Lets check again 
+select distinct industry
+from layoffs_staging2
+order by 1; #Oke its look better 
+
+# LOCATION 
+select distinct location 
+from layoffs_staging2
+order by 1; #(CLEAN)
+
+# Country
+select distinct country 
+from layoffs_staging2
+order by 1; # There are united states and united states. (The simmilar data actually)
+
+#Remove '.' in the United States.
+select distinct country, trim(trailing '.' from country) #REMOVE DOT IN THE END OF COUNTRY NAME
+from layoffs_staging2
+where country like 'United States%'
+order by 1; 
+
+UPDATE layoffs_staging2
+SET country = trim(trailing '.' from country)
+where country like 'United States%';
+
+#check again
+select distinct country, trim(trailing '.' from country) #REMOVE DOT IN THE END OF COUNTRY NAME
+from layoffs_staging2
+order by 1;
+
+# DATE ( CHANGE THE TYPE OF DATA DATE INTO OHTER TYPE) 
+select `date`,
+# CHANGING FROM TEXT TO DATE
+str_to_date(`date`,'%m/%d/%Y') #Two paramaters(`the name of coloum`, %month/%day/%Years(4 numbers)
+from layoffs_staging2;
+
+UPDATE layoffs_staging2
+set `date` = str_to_date(`date`,'%m/%d/%Y') ;
+
+#check data
+select `date`
+from layoffs_staging2;
+
+#IF THE TYPE OF DATE IN THE TABLES IS STILL THE SAME THIS THE WAY TO CHANGE IT
+alter table layoffs_staging2
+modify column `date`  DATE; # ATER RUN THIS, LET'S CHECK IT OUT (DONT FORGET TO REFRESH IT FIRST)
+
+
+
+-- 3. REMOVE NULLS AND BLANKS
+Select*
+from layoffs_staging2
+where total_laid_off  is Null
+and percentage_laid_off is null ;
+
+UPDATE layoffs_staging2
+SET industry = null
+where industry ='';
+
+#check industry
+Select *
+from layoffs_staging2
+where industry is null or
+industry = '';
+
+
+Select *
+from layoffs_staging2
+where company = 'Airbnb';
+# change the null into travel(cause this is the industry for Airbnb)
+select t1.industry, t2.industry
+from layoffs_staging2 as t1
+join layoffs_staging2 as t2
+	on t1.company = t2.company
+    and t1.location = t2.location
+where (t1.industry is Null or t1.industry = '')
+and t2.industry is not null;
+
+
+UPDATE layoffs_staging2 as t1
+JOIN layoffs_staging2 as t2
+	on t1.company = t2.company
+SET t1.industry = t2.industry
+where t1.industry is Null
+and t2.industry is not null;
+
+Select *
+from layoffs_staging2
+where company = 'Airbnb';
+
+
+-- 4. Remove row and column that we dont need
+
+Select*
+from layoffs_staging2
+where total_laid_off  is Null
+and percentage_laid_off is null ;
+
+#We cant trust that data
+delete
+from layoffs_staging2
+where total_laid_off  is Null
+and percentage_laid_off is null ;
+
+Select*
+from layoffs_staging2
+where total_laid_off  is Null
+and percentage_laid_off is null ;
+
+#Check 
+Select*
+from layoffs_staging2;
+
+#Deleted the row_num coloumn
+alter table layoffs_staging2
+drop column row_num;
+
+
