@@ -1,0 +1,112 @@
+select*
+from layoffs_staging2;
+
+select max(total_laid_off), max(percentage_laid_off)
+from layoffs_staging2 ;
+
+#To Find the country that get most fund raise
+select *
+from layoffs_staging2 
+where percentage_laid_off = 1
+order by funds_raised_millions desc
+;
+
+#Find the total laid off in each country
+select company,sum(total_laid_off)
+from layoffs_staging2
+group by company
+order by 2 desc ;
+
+#See interval of data
+select min(`date`), max(`date`) 
+from layoffs_staging2;
+#Result : start from 2020 and finish in 2023
+
+-- What the industry got a most total laid off
+Select industry, sum(total_laid_off), sum(percentage_laid_off)
+from layoffs_staging2
+group by industry
+order by 2 desc ;
+
+#The result is consumer
+
+-- Which Country has the most total laid off
+select country, sum(total_laid_off)
+from layoffs_staging2
+group by country
+order by 2 desc;
+
+#The result is United States has 256559 laid off 
+
+# How about Indonesia? 
+select country, sum(total_laid_off)
+from layoffs_staging2
+where country = 'Indonesia'
+group by country;
+
+#Indonesia has 3521 laid off in that periode
+
+-- Let's see the date
+
+Select `date`, sum(total_laid_off)
+from layoffs_staging2
+group by `date`
+order by 2 desc ;
+
+#Let's see the year
+select YEAR(`date`), sum(total_laid_off)
+from layoffs_staging2
+group by YEAR(`date`)
+order by 1 desc;
+
+-- Stage
+Select stage, sum(total_laid_off)
+from layoffs_staging2
+group by stage
+order by 2 desc ;
+
+
+
+-- Explore Again 
+select*
+from layoffs_staging2;
+
+select substring(`date`,1,7) as `Month`, sum(total_laid_off)
+from layoffs_staging2
+where substring(`date`,1,7) is not null
+group by `Month`
+order by 1 asc;
+
+-- Let's we ROLLING SUM OF TOTAL LAID OFF IN TIME
+WITH Rolling_total as 
+(
+select substring(`date`,1,7) as `Month`, sum(total_laid_off) as total_off
+from layoffs_staging2
+where substring(`date`,1,7) is not null
+group by `Month`
+order by 1 asc
+)
+select `Month`, total_off, sum(total_off) Over(order by `Month`) as rolling_total
+from Rolling_total;
+
+#We can see the proggresion of total laid off in the early month until the last month in year 
+
+-- Let's see the company who got the most laid off per years
+select company,year(`date`), sum(total_laid_off)
+from layoffs_staging2 
+group by company,year(`date`)
+order by 3 desc;
+
+# Now let's do it
+with Company_Year(company, years, total_laid_off) as
+(select company,year(`date`), sum(total_laid_off)
+from layoffs_staging2 
+group by company,year(`date`)
+), Company_year_rank as
+(select *, Dense_Rank() Over(Partition by years order by total_laid_off desc) as ranking
+from Company_Year
+WHERE years is not null
+)
+select * 
+from  Company_year_rank
+where ranking <= 5
