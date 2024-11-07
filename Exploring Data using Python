@@ -1,0 +1,67 @@
+# Import libraries 
+data = pd.read_csv('the weather dataset.csv')
+data.head() 
+
+#### Find the all unique "Wind Speed" values in data
+data['Wind Speed_km/h'].unique() #Answer
+
+### Find the number of time when the "Weather is exactly clear
+# values count
+data.Weather.value_counts()
+#filtering
+data[data.Weather == 'Clear']
+#groupby
+data.groupby('Weather').get_group('Clear') #answer
+
+#### find the number of time when the 'Wind Speed was exactly 4 km/h'.
+data.groupby('Wind Speed_km/h').get_group(4) #Answer
+
+
+### Find the all null values of the data
+data.isnull().sum() #Answer
+
+
+#### Rename the column 'Weather' in dataframe to 'Weather Condition'
+data.rename(columns= {'Weather':'Weather Condition'}) 
+data.rename(columns= {'Weather':'Weather Condition'},inplace = True) # change the data frame permanent
+
+
+#### What is the mean 'Visivility'
+data['Visibility_km'].mean() #Code
+
+
+#### What is the standart deviation of 'Presure' in this data??
+data.Press_kPa.std() #Code
+
+#### What is the variance of the 'Relative Humidity' of this data
+data['Rel Hum_%'].var() #Code
+
+
+#### Find All Instances when "Snow" was recorded. 
+#Values_count
+data['Weather Condition'].value_counts()
+#Filtering
+data[data['Weather Condition'] =='Snow'] #Code
+#Str.Contains
+data[data['Weather Condition'].str.contains('Snow')]
+
+
+#### Find all instances when "Wind Speed is above 24" and 'Visibility is 25'
+data[(data['Wind Speed_km/h'] > 24) & (data['Visibility_km'] == 25)] #Code
+
+
+#### What is the mean value of each column against each "Weather Condition"?
+#Group by
+data.groupby('Weather Condition').mean(numeric_only=True) #code
+
+
+#### Find all instances when the weather is clear or visibility is above 40
+data[(data['Weather Condition']== 'Clear') | (data['Visibility_km'] > 40)] #code
+
+
+
+#### Find all instances when Weather is clear and Relative humidity is greater than 50 or visbility is above 40
+data[(data['Weather Condition']== 'Clear') & (data['Rel Hum_%']>50) |(data['Visibility_km'] > 40)] #Code
+
+
+
